@@ -1,0 +1,5 @@
+# eslint 忽略的文件或者文件夹
+.eslintrc.js
+dist/*
+node_modules/*
+shime-uni.d.ts
