@@ -4,10 +4,14 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@components/*": ["./src/components/*"]
     },
     "lib": ["esnext", "dom"],
-    "types": ["@dcloudio/types"]
+    "types": ["@dcloudio/types", "@uni-helper/uni-app-types"]
+  },
+  "vueCompilerOptions": {
+    "nativeTags": ["block", "component", "template", "slot"]
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"]
 }

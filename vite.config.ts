@@ -14,15 +14,15 @@ export default defineConfig({
     vueJsx(),
     isProduction ? imagemin() : null,
     createSvgIconsPlugin({
-      iconDirs: [path.join(__dirname, 'src/static/icons')]
+      iconDirs: [path.join(__dirname, 'src/assets/icons')]
     })
   ],
+  publicDir: 'assets',
   resolve: {
     alias: {
-      '~': path.join(__dirname, 'src'),
       '@components': path.join(__dirname, 'src/components'),
-      '@images': path.join(__dirname, 'src/static/images'),
-      '@icons': path.join(__dirname, 'src/static/icons')
+      '@images': path.join(__dirname, 'src/assets/images'),
+      '@icons': path.join(__dirname, 'src/assets/icons')
     }
   }
 });
