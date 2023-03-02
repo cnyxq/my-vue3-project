@@ -106,21 +106,22 @@ export const Get = <T>(
   url: string,
   params: IAnyObj = {},
   clearFn?: Fn
-): Promise<[ErrorType, FcResponse<T> | undefined]> => {
-  return new Promise((resolve) => {
+): Promise<ErrorType | FcResponse<T>> => {
+  return new Promise((resolve, reject) => {
     axios
       .get(url, { params })
       .then((response) => {
+        console.log('我进来了');
         let res: FcResponse<T>;
         if (clearFn) {
           res = clearFn(response.data) as unknown as FcResponse<T>;
         } else {
           res = response.data;
         }
-        resolve([undefined, res]);
+        resolve(res);
       })
       .catch((error: AxiosError | Error) => {
-        resolve([error, undefined]);
+        reject(error);
       });
   });
 };
@@ -130,15 +131,15 @@ export const Post = <T>(
   data: IAnyObj = {},
   config: IAnyObj,
   isForm = false
-): Promise<[ErrorType, FcResponse<T> | undefined]> => {
-  return new Promise((resolve) => {
+): Promise<ErrorType | FcResponse<T>> => {
+  return new Promise((resolve, reject) => {
     axios
       .post(url, isForm ? qs.stringify(data) : data, config)
       .then((response) => {
-        resolve([undefined, response.data]);
+        resolve(response.data);
       })
       .catch((error: AxiosError | Error) => {
-        resolve([error, undefined]);
+        reject(error);
       });
   });
 };
