@@ -1,45 +1,89 @@
-import type {
-  InternalAxiosRequestConfig,
-  AxiosError,
-  AxiosResponse
-} from 'axios';
-import axios from 'axios';
-import qs from 'qs';
-import type { Fn, ErrorType, IAnyObj, FcResponse } from '@/types/axios';
+class Request {
+  private defaultConfig: UniApp.RequestOptions = {
+    url: '',
+    data: {},
+    header: {
+      'content-type': 'application/x-www-form-urlencoded'
+    },
+    method: 'GET',
+    timeout: 5000,
+    dataType: 'json',
+    responseType: 'text'
+  };
 
-// 请求调整
-const handleRequestHeader = (config: InternalAxiosRequestConfig) => {
-  return config;
-};
-// 配置授权信息
-const handleAuth = (config: InternalAxiosRequestConfig) => {
-  return config;
-};
-// 请求拦截
-axios.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    config = handleRequestHeader(config);
-    config = handleAuth(config);
+  interceptors = {
+    request: (
+      func: (...args: UniApp.RequestOptions[]) => UniApp.RequestOptions
+    ) => {
+      Request.requestBefore = func;
+    },
+    response: (
+      func: (
+        ...args: UniApp.RequestSuccessCallbackResult[]
+      ) =>
+        | UniApp.RequestSuccessCallbackResult
+        | Promise<UniApp.RequestSuccessCallbackResult>
+    ) => {
+      Request.responseAfter = func;
+    }
+  };
+
+  static requestBefore(config: UniApp.RequestOptions) {
     return config;
-  },
-  (error) => {
-    return Promise.reject(error);
   }
-);
+  static responseAfter(
+    res: UniApp.RequestSuccessCallbackResult
+  ):
+    | UniApp.RequestSuccessCallbackResult
+    | Promise<UniApp.RequestSuccessCallbackResult> {
+    return res;
+  }
+
+  http(options: UniApp.RequestOptions) {
+    options.url = import.meta.env.VITE_URL_HEADER + options.url;
+    options.method = options.method ? options.method : 'GET';
+    options.data = options.data ?? {};
+    options.header = { ...this.defaultConfig, ...options.header };
+
+    options = { ...options, ...Request.requestBefore(options) };
+
+    return new Promise((resolve, reject) => {
+      // 收到开发者服务器成功返回的回调函数
+      options.success = (res) => {
+        resolve(Request.responseAfter(res));
+      };
+      // 接口调用失败的回调函数
+      options.fail = (err) => {
+        console.log('进来了');
+        reject(err);
+      };
+      // 接口调用结束的回调函数（调用成功、失败都会执行
+      options.complete = () => {
+        //
+      };
+      uni.request(options);
+    });
+  }
+}
+
+const request = new Request();
+
+// 请求拦截
+request.interceptors.request((config: UniApp.RequestOptions) => {
+  return config;
+});
+
 // 响应拦截
-axios.interceptors.response.use(
-  (response: AxiosResponse) => {
-    if (response.status !== 200) return Promise.reject(response.data);
-    handleAuthError(response.data.code);
-    return response;
-  },
-  (error) => {
-    handleNetworkError(error.response.status);
-    return Promise.reject(error);
+request.interceptors.response((res: UniApp.RequestSuccessCallbackResult) => {
+  if (res.statusCode !== 200) {
+    handleNetworkError(res.statusCode);
+    return Promise.reject(res.data);
   }
-);
-// 错误处理（网络错误、授权错误）
-const handleNetworkError = (errStatus: number) => {
+  return res;
+});
+
+// 错误处理
+function handleNetworkError(errStatus: number) {
   let errMessage = '未知错误';
   if (errStatus) {
     switch (errStatus) {
@@ -89,57 +133,6 @@ const handleNetworkError = (errStatus: number) => {
     title: errMessage,
     duration: 2000
   });
-};
-const handleAuthError = (errorNo: string) => {
-  const authErrMap: IAnyObj = {
-    '10031': '登录失效，需要重新登录'
-  };
-  if (Object.prototype.hasOwnProperty.call(authErrMap, errorNo)) {
-    uni.showToast({
-      title: authErrMap[errorNo] as string,
-      duration: 2000
-    });
-  }
-};
+}
 
-export const Get = <T>(
-  url: string,
-  params: IAnyObj = {},
-  clearFn?: Fn
-): Promise<ErrorType | FcResponse<T>> => {
-  return new Promise((resolve, reject) => {
-    axios
-      .get(url, { params })
-      .then((response) => {
-        console.log('我进来了');
-        let res: FcResponse<T>;
-        if (clearFn) {
-          res = clearFn(response.data) as unknown as FcResponse<T>;
-        } else {
-          res = response.data;
-        }
-        resolve(res);
-      })
-      .catch((error: AxiosError | Error) => {
-        reject(error);
-      });
-  });
-};
-
-export const Post = <T>(
-  url: string,
-  data: IAnyObj = {},
-  config: IAnyObj,
-  isForm = false
-): Promise<ErrorType | FcResponse<T>> => {
-  return new Promise((resolve, reject) => {
-    axios
-      .post(url, isForm ? qs.stringify(data) : data, config)
-      .then((response) => {
-        resolve(response.data);
-      })
-      .catch((error: AxiosError | Error) => {
-        reject(error);
-      });
-  });
-};
+export default request;

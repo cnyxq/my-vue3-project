@@ -139,7 +139,6 @@ export function useRequest<T, R extends unknown[]>(
         data.value = result;
         errCount.value = 0; // 重置错误次数
         error.value = undefined;
-        console.log(res, 'res');
         onSuccess(result, params.value);
         return result;
       })
@@ -213,6 +212,7 @@ export function useRequest<T, R extends unknown[]>(
     );
   }
 
+  // 轮询连续报错后，终止轮询操作
   watch(errCount, (newVal) => {
     if (pollingErrorRetryCount !== -1 && newVal >= pollingErrorRetryCount) {
       if (pollingTimer) clearInterval(pollingTimer);
