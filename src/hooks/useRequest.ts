@@ -2,9 +2,9 @@ import type { Ref } from 'vue';
 import { ref, watch } from 'vue';
 import { debounce, throttle } from 'lodash';
 
-type Service<T, R extends unknown[]> = (...args: R) => Promise<T>;
-type OptionsType<T, R extends unknown[]> = IDefaultOptions<T, R>;
-interface IDefaultOptions<T = unknown, R extends unknown[] = unknown[]> {
+export type Service<T, R extends unknown[]> = (...args: R) => Promise<T>;
+export type OptionsType<T, R extends unknown[]> = IDefaultOptions<T, R>;
+export interface IDefaultOptions<T = unknown, R extends unknown[] = unknown[]> {
   ready: Ref<boolean>;
   defaultLoading: boolean;
   initialData: T;
@@ -119,10 +119,11 @@ export function useRequest<T, R extends unknown[]>(
   let pollingSinceFinishedTimer: ReturnType<typeof setInterval>;
   const errCount = ref(0); // 记录连续报错次数，用来中断轮询
 
-  function _run() {
-    if (!ready.value) {
-      return Promise.resolve();
-    }
+  // function _run(): Promise<void | T>;
+  function _run(...args: unknown[]) {
+    if (!args.length) args = params.value;
+
+    if (!ready.value) return Promise.resolve();
 
     if (loadingDelayTimer) clearTimeout(loadingDelayTimer);
     if (loadingDelay) {
@@ -133,7 +134,7 @@ export function useRequest<T, R extends unknown[]>(
       loading.value = true;
     }
 
-    return promiseService(...params.value)
+    return promiseService(...(args as R))
       .then((res) => {
         const result = formatResult(res) as T;
         data.value = result;
@@ -150,13 +151,14 @@ export function useRequest<T, R extends unknown[]>(
       .finally(() => {
         if (loadingDelayTimer) clearTimeout(loadingDelayTimer);
 
+        // 轮询方式二：根据上一次请求结束后开始轮询
         if (pollingInterval && pollingSinceLastFinished) {
           if (
             pollingErrorRetryCount === -1 ||
             errCount.value < pollingErrorRetryCount
           ) {
             pollingSinceFinishedTimer = setTimeout(() => {
-              _run();
+              _run(...args);
             }, pollingInterval);
           }
         }
@@ -170,22 +172,22 @@ export function useRequest<T, R extends unknown[]>(
   // 节流
   if (throttleInterval) {
     const throttleRun = throttle(_run, throttleInterval);
-    run = () => {
-      return Promise.resolve(throttleRun());
+    run = (...args) => {
+      return Promise.resolve(throttleRun(...args));
     };
   }
   // 防抖
   if (debounceInterval) {
     const debounceRun = debounce(_run, debounceInterval);
-    run = () => {
-      return Promise.resolve(debounceRun());
+    run = (...args) => {
+      return Promise.resolve(debounceRun(...args));
     };
   }
 
-  // 轮询
+  // 轮询方式一：根据时间间隔发起轮询
   if (pollingInterval && !pollingSinceLastFinished) {
     pollingTimer = setInterval(() => {
-      run();
+      run(...params.value);
     }, pollingInterval);
   }
 
@@ -199,14 +201,14 @@ export function useRequest<T, R extends unknown[]>(
 
   // 重新执行service
   function refresh() {
-    run();
+    run(...params.value);
   }
 
   if (!manual) {
     watch(
       ready,
       () => {
-        if (ready.value) run();
+        if (ready.value) run(...(defaultParams as R));
       },
       { immediate: true }
     );
